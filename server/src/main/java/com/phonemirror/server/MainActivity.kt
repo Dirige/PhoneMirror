@@ -33,33 +33,50 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         Log.d("MainActivity", "projectionLauncher 回调: resultCode=${result.resultCode}, data=${result.data}")
-        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            try {
-                // 使用静态变量传递，避免 Intent 序列化问题
-                ScreenCaptureService.projectionResultCode = result.resultCode
-                ScreenCaptureService.projectionData = result.data
+        
+        when (result.resultCode) {
+            Activity.RESULT_OK -> {
+                if (result.data != null) {
+                    try {
+                        // 使用静态变量传递，避免 Intent 序列化问题
+                        ScreenCaptureService.projectionResultCode = result.resultCode
+                        ScreenCaptureService.projectionData = result.data
 
-                // 读取用户自定义端口
-                val port = etPort.text.toString().toIntOrNull() ?: Protocol.DEFAULT_STREAM_PORT
+                        // 读取用户自定义端口
+                        val port = etPort.text.toString().toIntOrNull() ?: Protocol.DEFAULT_STREAM_PORT
 
-                val intent = Intent(this, ScreenCaptureService::class.java).apply {
-                    putExtra("port", port)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent)
+                        val intent = Intent(this, ScreenCaptureService::class.java).apply {
+                            putExtra("port", port)
+                        }
+                        
+                        Log.d("MainActivity", "准备启动前台服务，端口: $port")
+                        
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        serverRunning = true
+                        updateUI()
+                        Toast.makeText(this, "投屏服务已启动", Toast.LENGTH_SHORT).show()
+                        Log.d("MainActivity", "投屏服务已启动")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "启动服务失败", e)
+                        Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
                 } else {
-                    startService(intent)
+                    Log.e("MainActivity", "授权成功但 data 为 null")
+                    Toast.makeText(this, "授权数据异常", Toast.LENGTH_LONG).show()
                 }
-                serverRunning = true
-                updateUI()
-                Log.d("MainActivity", "投屏服务已启动")
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error starting service", e)
-                Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
             }
-        } else {
-            Log.w("MainActivity", "用户取消或授权失败: resultCode=${result.resultCode}")
-            Toast.makeText(this, "授权已取消", Toast.LENGTH_SHORT).show()
+            Activity.RESULT_CANCELED -> {
+                Log.w("MainActivity", "用户取消了授权")
+                Toast.makeText(this, "授权已取消", Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                Log.e("MainActivity", "授权失败，resultCode: ${result.resultCode}")
+                Toast.makeText(this, "授权失败 (code: ${result.resultCode})", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -111,6 +128,7 @@ class MainActivity : AppCompatActivity() {
     private fun startScreenCapture() {
         try {
             Log.d("MainActivity", "开始启动屏幕录制...")
+            Toast.makeText(this, "正在启动屏幕录制...", Toast.LENGTH_SHORT).show()
 
             val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
             if (projectionManager == null) {
@@ -129,6 +147,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             Log.d("MainActivity", "成功创建屏幕录制 Intent，准备启动授权界面...")
+            Toast.makeText(this, "请选择'整个屏幕'并授权", Toast.LENGTH_LONG).show()
 
             projectionLauncher.launch(intent)
 

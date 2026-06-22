@@ -10,6 +10,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- 状态文字 -->
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="正在连接..."
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:background="#88000000"
+        android:padding="12dp" />
+
     <!-- 关闭按钮 - 左上角 -->
     <ImageView
         android:id="@+id/btn_close"

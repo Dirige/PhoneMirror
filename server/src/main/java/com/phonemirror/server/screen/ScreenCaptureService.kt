@@ -39,9 +39,6 @@ class ScreenCaptureService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            // Android 14 要求：必须先 startForeground，再 getMediaProjection
-            startForegroundNotification()
-
             val port = intent?.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT) ?: Protocol.DEFAULT_STREAM_PORT
             val resultCode = projectionResultCode
             val data = projectionData
@@ -51,6 +48,9 @@ class ScreenCaptureService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+
+            // Android 14 要求：必须先 startForeground，再 getMediaProjection，且必须在 3 秒内完成
+            startForegroundNotification()
 
             val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             mediaProjection = pm.getMediaProjection(resultCode, data)

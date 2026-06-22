@@ -3,6 +3,7 @@ package com.phonemirror.client.service
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -10,6 +11,7 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.phonemirror.client.MainActivity
 import com.phonemirror.client.R
@@ -27,6 +29,7 @@ class FloatingWindowService : Service() {
     private var windowManager: WindowManager? = null
     private var floatView: View? = null
     private var surfaceView: SurfaceView? = null
+    private var tvStatus: TextView? = null
     private var decoder: VideoDecoder? = null
     private var connection: ConnectionClient? = null
     private var touchSender: TouchSender? = null
@@ -79,6 +82,7 @@ class FloatingWindowService : Service() {
             val inflater = LayoutInflater.from(this)
             floatView = inflater.inflate(R.layout.floating_window, null)
             surfaceView = floatView!!.findViewById(R.id.surface_view)
+            tvStatus = floatView!!.findViewById(R.id.tv_status)
             btnClose = floatView!!.findViewById(R.id.btn_close)
             btnResize = floatView!!.findViewById(R.id.btn_resize)
 
@@ -189,9 +193,12 @@ class FloatingWindowService : Service() {
 
             connection!!.onVideoCodecReceived = { codecInfo ->
                 try {
+                    Log.i(TAG, "收到视频编码信息: ${codecInfo.width}x${codecInfo.height}")
                     decoder?.configure(codecInfo.width, codecInfo.height)
+                    updateStatus("")  // 连接成功，隐藏状态文字
                 } catch (e: Exception) {
                     Log.e(TAG, "Configure decoder error", e)
+                    updateStatus("解码器配置失败")
                 }
             }
             connection!!.onVideoFrameReceived = { data ->
@@ -202,9 +209,32 @@ class FloatingWindowService : Service() {
                 }
             }
 
-            Thread({ connection!!.connect() }, "ConnectionClient").start()
+            Thread({
+                try {
+                    Log.i(TAG, "正在连接 $host:$port...")
+                    updateStatus("正在连接 $host:$port...")
+                    connection!!.connect()
+                    Log.i(TAG, "连接已断开")
+                    updateStatus("连接已断开")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Connection error", e)
+                    updateStatus("连接失败: ${e.message}")
+                }
+            }, "ConnectionClient").start()
         } catch (e: Exception) {
             Log.e(TAG, "Connect error", e)
+            updateStatus("启动失败: ${e.message}")
+        }
+    }
+
+    private fun updateStatus(message: String) {
+        try {
+            tvStatus?.post {
+                tvStatus?.text = message
+                tvStatus?.visibility = if (message.isEmpty()) View.GONE else View.VISIBLE
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "updateStatus error", e)
         }
     }
 
@@ -223,7 +253,12 @@ class FloatingWindowService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pi)
             .build()
-        startForeground(2, n)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(2, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        } else {
+            startForeground(2, n)
+        }
     }
 
     override fun onDestroy() {

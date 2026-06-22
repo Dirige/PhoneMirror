@@ -48,8 +48,9 @@ class ConnectionClient(private val host: String, private val port: Int) {
                 }
             }
         } catch (e: Exception) {
-            if (connected) Log.e("ConnClient", "Connection error", e)
             connected = false
+            Log.e("ConnClient", "Connection error", e)
+            throw e  // 必须抛出，让调用方感知连接失败
         }
     }
 

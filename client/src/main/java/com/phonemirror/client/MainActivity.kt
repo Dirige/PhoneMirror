@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "需要开启悬浮窗权限才能投屏", Toast.LENGTH_LONG).show()
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + packageName)
@@ -85,17 +86,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startFloatingService(host: String, port: Int) {
-        val intent = Intent(this, FloatingWindowService::class.java).apply {
-            putExtra("host", host)
-            putExtra("port", port)
+        try {
+            val intent = Intent(this, FloatingWindowService::class.java).apply {
+                putExtra("host", host)
+                putExtra("port", port)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            tvStatus.text = "已连接"
+            tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_light))
+            Toast.makeText(this, "正在连接 $host:$port", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "启动失败: ${e.message}", Toast.LENGTH_LONG).show()
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        tvStatus.text = "已连接"
-        tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_light))
     }
 
     private fun scanDevices() {
