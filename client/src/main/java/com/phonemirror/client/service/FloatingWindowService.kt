@@ -7,8 +7,8 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
-import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.core.app.NotificationCompat
 import com.phonemirror.client.MainActivity
@@ -19,6 +19,10 @@ import com.phonemirror.client.network.TouchSender
 import com.phonemirror.common.Protocol
 
 class FloatingWindowService : Service() {
+
+    companion object {
+        private const val TAG = "FloatingWindowService"
+    }
 
     private var windowManager: WindowManager? = null
     private var floatView: View? = null
@@ -38,124 +42,170 @@ class FloatingWindowService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent == null) { stopSelf(); return START_NOT_STICKY }
-        val host = intent.getStringExtra("host") ?: run { stopSelf(); return START_NOT_STICKY }
-        val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
+        try {
+            if (intent == null) {
+                Log.e(TAG, "Intent is null")
+                stopSelf()
+                return START_NOT_STICKY
+            }
 
-        startForegroundNotification()
-        createFloatingWindow()
-        connectToPhone(host, port)
-        return START_STICKY
+            val host = intent.getStringExtra("host")
+            if (host.isNullOrEmpty()) {
+                Log.e(TAG, "Host is null or empty")
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
+
+            startForegroundNotification()
+            createFloatingWindow()
+            connectToPhone(host, port)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onStartCommand", e)
+            stopSelf()
+        }
+        return START_NOT_STICKY
     }
 
     private fun createFloatingWindow() {
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val dm = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        windowManager!!.defaultDisplay.getMetrics(dm)
-        screenWidth = dm.widthPixels
-        screenHeight = dm.heightPixels
+        try {
+            windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val dm = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager!!.defaultDisplay.getMetrics(dm)
+            screenWidth = dm.widthPixels
+            screenHeight = dm.heightPixels
 
-        val inflater = LayoutInflater.from(this)
-        floatView = inflater.inflate(R.layout.floating_window, null)
-        surfaceView = floatView!!.findViewById(R.id.surface_view)
-        btnClose = floatView!!.findViewById(R.id.btn_close)
-        btnResize = floatView!!.findViewById(R.id.btn_resize)
+            val inflater = LayoutInflater.from(this)
+            floatView = inflater.inflate(R.layout.floating_window, null)
+            surfaceView = floatView!!.findViewById(R.id.surface_view)
+            btnClose = floatView!!.findViewById(R.id.btn_close)
+            btnResize = floatView!!.findViewById(R.id.btn_resize)
 
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else
-            @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else
+                @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
 
-        val params = WindowManager.LayoutParams(
-            (screenWidth * 0.85f).toInt(),
-            (screenHeight * 0.7f).toInt(),
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = (screenWidth * 0.075f).toInt()
-            y = (screenHeight * 0.1f).toInt()
+            val params = WindowManager.LayoutParams(
+                (screenWidth * 0.85f).toInt(),
+                (screenHeight * 0.7f).toInt(),
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = (screenWidth * 0.075f).toInt()
+                y = (screenHeight * 0.1f).toInt()
+            }
+
+            windowManager!!.addView(floatView, params)
+            setupTouchHandling()
+            setupButtons()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating floating window", e)
+            stopSelf()
         }
-
-        windowManager!!.addView(floatView, params)
-        setupTouchHandling()
-        setupButtons()
     }
 
     private fun setupTouchHandling() {
-        surfaceView!!.setOnTouchListener { v, event ->
-            if (isResizing) return@setOnTouchListener true
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    lastTouchX = event.x
-                    lastTouchY = event.y
-                    sendTouchEvent(Protocol.TOUCH_DOWN, event.x, event.y, v)
+        surfaceView?.setOnTouchListener { v, event ->
+            try {
+                if (isResizing) return@setOnTouchListener true
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        lastTouchX = event.x
+                        lastTouchY = event.y
+                        sendTouchEvent(Protocol.TOUCH_DOWN, event.x, event.y, v)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        sendTouchEvent(Protocol.TOUCH_MOVE, event.x, event.y, v)
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        sendTouchEvent(Protocol.TOUCH_UP, event.x, event.y, v)
+                    }
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    sendTouchEvent(Protocol.TOUCH_MOVE, event.x, event.y, v)
-                }
-                MotionEvent.ACTION_UP -> {
-                    sendTouchEvent(Protocol.TOUCH_UP, event.x, event.y, v)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Touch handling error", e)
             }
             true
         }
     }
 
     private fun sendTouchEvent(action: Int, x: Float, y: Float, view: View) {
-        val normalizedX = (x / view.width).coerceIn(0f, 1f)
-        val normalizedY = (y / view.height).coerceIn(0f, 1f)
-        touchSender?.send(action, normalizedX, normalizedY)
+        try {
+            val normalizedX = (x / view.width).coerceIn(0f, 1f)
+            val normalizedY = (y / view.height).coerceIn(0f, 1f)
+            touchSender?.send(action, normalizedX, normalizedY)
+        } catch (e: Exception) {
+            Log.e(TAG, "Send touch error", e)
+        }
     }
 
     private fun setupButtons() {
         btnClose?.setOnClickListener { stopSelf() }
 
         btnResize?.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isResizing = true
-                    lastTouchX = event.rawX
-                    lastTouchY = event.rawY
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastTouchX
-                    val dy = event.rawY - lastTouchY
-                    lastTouchX = event.rawX
-                    lastTouchY = event.rawY
+            try {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        isResizing = true
+                        lastTouchX = event.rawX
+                        lastTouchY = event.rawY
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = event.rawX - lastTouchX
+                        val dy = event.rawY - lastTouchY
+                        lastTouchX = event.rawX
+                        lastTouchY = event.rawY
 
-                    val lp = floatView!!.layoutParams as WindowManager.LayoutParams
-                    val newW = (lp.width + dx.toInt()).coerceIn(300, screenWidth)
-                    val ratio = decoder?.let { it.videoWidth.toFloat() / it.videoHeight.toFloat() } ?: (16f / 9f)
-                    val newH = (newW / ratio).toInt()
-                    lp.width = newW
-                    lp.height = newH
-                    windowManager!!.updateViewLayout(floatView, lp)
+                        val lp = floatView!!.layoutParams as WindowManager.LayoutParams
+                        val newW = (lp.width + dx.toInt()).coerceIn(300, screenWidth)
+                        val ratio = decoder?.let {
+                            it.videoWidth.toFloat() / it.videoHeight.toFloat()
+                        } ?: (16f / 9f)
+                        val newH = (newW / ratio).toInt()
+                        lp.width = newW
+                        lp.height = newH
+                        windowManager!!.updateViewLayout(floatView, lp)
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        isResizing = false
+                    }
                 }
-                MotionEvent.ACTION_UP -> {
-                    isResizing = false
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Resize error", e)
             }
             true
         }
     }
 
     private fun connectToPhone(host: String, port: Int) {
-        connection = ConnectionClient(host, port)
-        decoder = VideoDecoder(surfaceView!!)
-        touchSender = TouchSender(connection!!)
+        try {
+            connection = ConnectionClient(host, port)
+            decoder = VideoDecoder(surfaceView!!)
+            touchSender = TouchSender(connection!!)
 
-        connection!!.onVideoCodecReceived = { codecInfo ->
-            decoder!!.configure(codecInfo.width, codecInfo.height)
-        }
-        connection!!.onVideoFrameReceived = { data ->
-            decoder!!.feedData(data)
-        }
+            connection!!.onVideoCodecReceived = { codecInfo ->
+                try {
+                    decoder?.configure(codecInfo.width, codecInfo.height)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Configure decoder error", e)
+                }
+            }
+            connection!!.onVideoFrameReceived = { data ->
+                try {
+                    decoder?.feedData(data)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Feed data error", e)
+                }
+            }
 
-        Thread({ connection!!.connect() }, "ConnectionClient").start()
+            Thread({ connection!!.connect() }, "ConnectionClient").start()
+        } catch (e: Exception) {
+            Log.e(TAG, "Connect error", e)
+        }
     }
 
     private fun startForegroundNotification() {
@@ -177,9 +227,13 @@ class FloatingWindowService : Service() {
     }
 
     override fun onDestroy() {
-        connection?.disconnect()
-        decoder?.release()
-        floatView?.let { windowManager?.removeView(it) }
+        try {
+            connection?.disconnect()
+            decoder?.release()
+            floatView?.let { windowManager?.removeView(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Cleanup error", e)
+        }
         super.onDestroy()
     }
 }
