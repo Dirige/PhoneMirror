@@ -34,12 +34,11 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             try {
+                // 使用静态变量传递，避免 Intent 序列化问题
+                ScreenCaptureService.projectionResultCode = result.resultCode
+                ScreenCaptureService.projectionData = result.data
+                
                 val intent = Intent(this, ScreenCaptureService::class.java).apply {
-                    putExtra("resultCode", result.resultCode)
-                    // 使用Bundle包装Intent对象,避免序列化问题
-                    val bundle = Bundle()
-                    bundle.putParcelable("projectionData", result.data)
-                    putExtra("projectionBundle", bundle)
                     putExtra("port", Protocol.DEFAULT_STREAM_PORT)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

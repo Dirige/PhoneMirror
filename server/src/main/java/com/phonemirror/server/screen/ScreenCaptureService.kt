@@ -21,52 +21,35 @@ import com.phonemirror.server.network.ConnectionServer
 import com.phonemirror.server.discovery.UdpDiscovery
 
 class ScreenCaptureService : Service() {
+
+    companion object {
+        private const val TAG = "ScreenCaptureService"
+        // 静态变量传递 projection 数据，避免 Intent 序列化问题
+        var projectionResultCode: Int = Activity.RESULT_CANCELED
+        var projectionData: Intent? = null
+    }
+
     private var mediaProjection: MediaProjection? = null
     private var videoEncoder: VideoEncoder? = null
     private var connectionServer: ConnectionServer? = null
     private var udpDiscovery: UdpDiscovery? = null
 
-    companion object {
-        private const val TAG = "ScreenCaptureService"
-    }
-
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            if (intent == null) {
-                Log.e(TAG, "Intent is null")
-                stopSelf()
-                return START_NOT_STICKY
-            }
+            // Android 14 要求：必须先 startForeground，再 getMediaProjection
+            startForegroundNotification()
 
-            val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
-            Log.d(TAG, "Received resultCode: $resultCode")
-
-            // 从Bundle中提取Intent对象
-            val projectionBundle = intent.getBundleExtra("projectionBundle")
-            @Suppress("DEPRECATION")
-            val data: Intent? = if (Build.VERSION.SDK_INT >= 33) {
-                projectionBundle?.getParcelable("projectionData", Intent::class.java)
-            } else {
-                projectionBundle?.getParcelable("projectionData")
-            }
+            val port = intent?.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT) ?: Protocol.DEFAULT_STREAM_PORT
+            val resultCode = projectionResultCode
+            val data = projectionData
 
             if (data == null) {
-                Log.e(TAG, "Data intent is null")
+                Log.e(TAG, "Projection data is null")
                 stopSelf()
                 return START_NOT_STICKY
             }
-
-            if (resultCode != Activity.RESULT_OK) {
-                Log.e(TAG, "Result code is not OK: $resultCode")
-                stopSelf()
-                return START_NOT_STICKY
-            }
-
-            val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
-
-            startForegroundNotification()
 
             val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             mediaProjection = pm.getMediaProjection(resultCode, data)
@@ -103,6 +86,9 @@ class ScreenCaptureService : Service() {
 
             connectionServer = ConnectionServer(port, codecInfo).apply { start() }
             udpDiscovery = UdpDiscovery(port).apply { start() }
+
+            // 清理静态变量
+            projectionData = null
 
             Log.i(TAG, "Screen capture started successfully")
         } catch (e: Exception) {
