@@ -6,6 +6,7 @@ import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.DisplayMetrics
@@ -114,7 +115,7 @@ class ScreenCaptureService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pi)
             .build()
-        startForeground(1, n)
+        startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
     }
 
     override fun onDestroy() {
