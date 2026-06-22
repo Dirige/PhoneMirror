@@ -4,11 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
-import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.text.format.Formatter
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -33,18 +33,26 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            val intent = Intent(this, ScreenCaptureService::class.java).apply {
-                putExtra("resultCode", result.resultCode)
-                putExtra("data", result.data)
-                putExtra("port", Protocol.DEFAULT_STREAM_PORT)
+            try {
+                val intent = Intent(this, ScreenCaptureService::class.java).apply {
+                    putExtra("resultCode", result.resultCode)
+                    // 使用Bundle包装Intent对象,避免序列化问题
+                    val bundle = Bundle()
+                    bundle.putParcelable("projectionData", result.data)
+                    putExtra("projectionBundle", bundle)
+                    putExtra("port", Protocol.DEFAULT_STREAM_PORT)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+                serverRunning = true
+                updateUI()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error starting service", e)
+                Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-            serverRunning = true
-            updateUI()
         }
     }
 
@@ -99,16 +107,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 获取本地 IP 地址，支持 WiFi 连接和热点模式
+     * 获取本地 IP 地址，优先返回热点 IP
      */
     private fun getLocalIp(): String {
         return try {
-            // 优先通过 NetworkInterface 获取（支持热点模式）
             val interfaces = NetworkInterface.getNetworkInterfaces()
+            var mobileIp: String? = null
+            
+            // 遍历所有网络接口
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
                 // 跳过回环和未启用的接口
                 if (ni.isLoopback || !ni.isUp) continue
+                
+                val name = ni.name.lowercase()
                 val addresses = ni.interfaceAddresses
                 for (addr in addresses) {
                     val inetAddr = addr.address
@@ -117,10 +129,24 @@ class MainActivity : AppCompatActivity() {
                     val ip = inetAddr.hostAddress ?: continue
                     // 过滤掉 127.x.x.x
                     if (ip.startsWith("127.")) continue
-                    return ip
+                    
+                    // 优先返回热点相关的接口 IP
+                    // wlan0, ap0, swlan0 等通常是热点接口
+                    if (name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan")) {
+                        return ip
+                    }
+                    
+                    // 记录移动网络的 IP 作为备选
+                    if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("pdp")) {
+                        if (mobileIp == null) {
+                            mobileIp = ip
+                        }
+                    }
                 }
             }
-            "未知"
+            
+            // 如果没有热点 IP，返回移动网络 IP
+            mobileIp ?: "未知"
         } catch (e: Exception) {
             // 降级：尝试 WiFi 方式
             tryGetWifiIp()

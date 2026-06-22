@@ -43,11 +43,13 @@ class ScreenCaptureService : Service() {
             val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
             Log.d(TAG, "Received resultCode: $resultCode")
 
+            // 从Bundle中提取Intent对象
+            val projectionBundle = intent.getBundleExtra("projectionBundle")
             @Suppress("DEPRECATION")
             val data: Intent? = if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra("data", Intent::class.java)
+                projectionBundle?.getParcelable("projectionData", Intent::class.java)
             } else {
-                intent.getParcelableExtra("data")
+                projectionBundle?.getParcelable("projectionData")
             }
 
             if (data == null) {
