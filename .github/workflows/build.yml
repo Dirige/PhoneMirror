@@ -53,12 +53,16 @@ jobs:
       with:
         script: |
           const log = process.env.SERVER_LOG || 'No log available';
-          const logTail = log.split('\n').slice(-50).join('\n');
+          const lines = log.split('\n');
+          // Extract actual Kotlin error lines (start with 'e:') and FAILURE section
+          const errorLines = lines.filter(l => /^e: file:/.test(l) || /^FAILURE:/.test(l) || /^>/.test(l) || /^\* What went wrong:/.test(l) || /^> Task/.test(l));
+          const logTail = lines.slice(-80).join('\n');
+          const errors = errorLines.join('\n') || 'No specific error lines found';
           await github.rest.issues.create({
             owner: context.repo.owner,
             repo: context.repo.repo,
             title: `Build failed: ${context.sha.substring(0, 7)}`,
-            body: `## Server Build Failure\n\nCommit: ${context.sha}\nRun: ${context.runId}\n\n### Last 50 lines of build log:\n\`\`\`\n${logTail}\n\`\`\`\n`,
+            body: `## Server Build Failure\n\nCommit: ${context.sha}\nRun: ${context.runId}\n\n### Error lines:\n\`\`\`\n${errors}\n\`\`\`\n\n### Last 80 lines of build log:\n\`\`\`\n${logTail}\n\`\`\`\n`,
             labels: ['build-failure']
           });
 
