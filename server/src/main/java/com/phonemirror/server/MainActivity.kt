@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.text.format.Formatter
 import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.phonemirror.common.Protocol
 import com.phonemirror.server.screen.ScreenCaptureService
 import java.net.Inet6Address
-import java.net.InetAddress
 import java.net.NetworkInterface
 
 class MainActivity : AppCompatActivity() {
@@ -25,21 +25,25 @@ class MainActivity : AppCompatActivity() {
     private var serverRunning = false
     private lateinit var btnToggle: Button
     private lateinit var tvStatus: TextView
-    private lateinit var tvIp: TextView
-    private lateinit var tvPort: TextView
-    private lateinit var tvDiscoveryPort: TextView
+    private lateinit var etIp: EditText
+    private lateinit var etPort: EditText
+    private lateinit var etDiscoveryPort: EditText
 
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        Log.d("MainActivity", "projectionLauncher 回调: resultCode=${result.resultCode}, data=${result.data}")
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             try {
                 // 使用静态变量传递，避免 Intent 序列化问题
                 ScreenCaptureService.projectionResultCode = result.resultCode
                 ScreenCaptureService.projectionData = result.data
-                
+
+                // 读取用户自定义端口
+                val port = etPort.text.toString().toIntOrNull() ?: Protocol.DEFAULT_STREAM_PORT
+
                 val intent = Intent(this, ScreenCaptureService::class.java).apply {
-                    putExtra("port", Protocol.DEFAULT_STREAM_PORT)
+                    putExtra("port", port)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(intent)
@@ -48,10 +52,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 serverRunning = true
                 updateUI()
+                Log.d("MainActivity", "投屏服务已启动")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error starting service", e)
                 Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
             }
+        } else {
+            Log.w("MainActivity", "用户取消或授权失败: resultCode=${result.resultCode}")
+            Toast.makeText(this, "授权已取消", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -61,13 +69,14 @@ class MainActivity : AppCompatActivity() {
 
         btnToggle = findViewById(R.id.btn_toggle)
         tvStatus = findViewById(R.id.tv_status)
-        tvIp = findViewById(R.id.tv_ip)
-        tvPort = findViewById(R.id.tv_port)
-        tvDiscoveryPort = findViewById(R.id.tv_discovery_port)
+        etIp = findViewById(R.id.et_ip)
+        etPort = findViewById(R.id.et_port)
+        etDiscoveryPort = findViewById(R.id.et_discovery_port)
 
-        tvIp.text = getLocalIp()
-        tvPort.text = Protocol.DEFAULT_STREAM_PORT.toString()
-        tvDiscoveryPort.text = Protocol.DISCOVERY_PORT.toString()
+        // 自动填充 IP 和端口
+        etIp.setText(getLocalIp())
+        etPort.setText(Protocol.DEFAULT_STREAM_PORT.toString())
+        etDiscoveryPort.setText(Protocol.DISCOVERY_PORT.toString())
 
         btnToggle.setOnClickListener {
             if (!serverRunning) {
@@ -80,16 +89,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 每次回到前台刷新 IP
-        tvIp.text = getLocalIp()
+        // 如果 IP 为空或未知，自动刷新
+        val currentIp = etIp.text.toString()
+        if (currentIp.isEmpty() || currentIp == "未知") {
+            etIp.setText(getLocalIp())
+        }
     }
 
     private fun updateUI() {
         if (serverRunning) {
-            tvStatus.text = "投屏中"
+            tvStatus.text = "● 投屏中"
+            tvStatus.setTextColor(getColor(android.R.color.holo_green_dark))
             btnToggle.text = "停止投屏"
         } else {
-            tvStatus.text = "未启动"
+            tvStatus.text = "● 未启动"
+            tvStatus.setTextColor(getColor(android.R.color.darker_gray))
             btnToggle.text = "开始投屏"
         }
     }
@@ -97,27 +111,27 @@ class MainActivity : AppCompatActivity() {
     private fun startScreenCapture() {
         try {
             Log.d("MainActivity", "开始启动屏幕录制...")
-            
+
             val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
             if (projectionManager == null) {
                 Log.e("MainActivity", "无法获取 MediaProjectionManager")
                 Toast.makeText(this, "无法获取屏幕录制服务", Toast.LENGTH_LONG).show()
                 return
             }
-            
+
             Log.d("MainActivity", "成功获取 MediaProjectionManager")
-            
+
             val intent = projectionManager.createScreenCaptureIntent()
             if (intent == null) {
                 Log.e("MainActivity", "createScreenCaptureIntent() 返回 null")
                 Toast.makeText(this, "无法创建屏幕录制请求", Toast.LENGTH_LONG).show()
                 return
             }
-            
+
             Log.d("MainActivity", "成功创建屏幕录制 Intent，准备启动授权界面...")
-            
+
             projectionLauncher.launch(intent)
-            
+
             Log.d("MainActivity", "已启动授权 Activity")
         } catch (e: Exception) {
             Log.e("MainActivity", "启动屏幕录制失败", e)
@@ -138,29 +152,24 @@ class MainActivity : AppCompatActivity() {
         return try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             var mobileIp: String? = null
-            
-            // 遍历所有网络接口
+
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
-                // 跳过回环和未启用的接口
                 if (ni.isLoopback || !ni.isUp) continue
-                
+
                 val name = ni.name.lowercase()
                 val addresses = ni.interfaceAddresses
                 for (addr in addresses) {
                     val inetAddr = addr.address
-                    // 跳过 IPv6 和回环地址
                     if (inetAddr.isLoopbackAddress || inetAddr is Inet6Address) continue
                     val ip = inetAddr.hostAddress ?: continue
-                    // 过滤掉 127.x.x.x
                     if (ip.startsWith("127.")) continue
-                    
+
                     // 优先返回热点相关的接口 IP
-                    // wlan0, ap0, swlan0 等通常是热点接口
                     if (name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan")) {
                         return ip
                     }
-                    
+
                     // 记录移动网络的 IP 作为备选
                     if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("pdp")) {
                         if (mobileIp == null) {
@@ -169,11 +178,9 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-            
-            // 如果没有热点 IP，返回移动网络 IP
+
             mobileIp ?: "未知"
         } catch (e: Exception) {
-            // 降级：尝试 WiFi 方式
             tryGetWifiIp()
         }
     }

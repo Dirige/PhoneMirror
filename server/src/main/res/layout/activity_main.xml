@@ -2,136 +2,163 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A1929"
+    android:background="#0D1117"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="32dp"
+        android:padding="28dp"
         android:gravity="center_horizontal">
 
+        <!-- 标题区域 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="手机镜像"
-            android:textSize="36sp"
-            android:textColor="#00E5FF"
+            android:text="📱 手机镜像"
+            android:textSize="32sp"
+            android:textColor="#E6EDF3"
             android:textStyle="bold"
-            android:layout_marginTop="48dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="手机端"
-            android:textSize="14sp"
-            android:textColor="#80CBC4"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="40dp" />
 
         <TextView
             android:id="@+id/tv_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="未启动"
-            android:textSize="16sp"
-            android:textColor="#78909C"
-            android:layout_marginTop="24dp" />
+            android:text="● 未启动"
+            android:textSize="14sp"
+            android:textColor="#8B949E"
+            android:layout_marginTop="8dp" />
 
+        <!-- 连接信息卡片 - 毛玻璃风格 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="24dp"
-            android:layout_marginTop="32dp"
-            android:background="#132F4C">
+            android:layout_marginTop="28dp"
+            android:background="@drawable/bg_glass_card">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="连接信息"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textColor="#E6EDF3"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <!-- IP 地址 -->
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="16dp">
+                android:text="IP 地址"
+                android:textColor="#8B949E"
+                android:textSize="12sp"
+                android:layout_marginTop="20dp" />
 
-                <TextView
-                    android:layout_width="80dp"
-                    android:layout_height="wrap_content"
-                    android:text="IP 地址"
-                    android:textColor="#78909C"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/tv_ip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#E0E0E0"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
+            <EditText
+                android:id="@+id/et_ip"
                 android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_glass_input"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="0dp"
+                android:textColor="#E6EDF3"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:inputType="text"
+                android:singleLine="true"
+                android:layout_marginTop="6dp" />
+
+            <!-- 端口 -->
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp">
+                android:text="投屏端口"
+                android:textColor="#8B949E"
+                android:textSize="12sp"
+                android:layout_marginTop="16dp" />
 
-                <TextView
-                    android:layout_width="80dp"
-                    android:layout_height="wrap_content"
-                    android:text="端口"
-                    android:textColor="#78909C"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/tv_port"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#E0E0E0"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
+            <EditText
+                android:id="@+id/et_port"
                 android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_glass_input"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="0dp"
+                android:textColor="#E6EDF3"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:inputType="number"
+                android:singleLine="true"
+                android:layout_marginTop="6dp" />
+
+            <!-- 发现端口 -->
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp">
+                android:text="发现端口"
+                android:textColor="#8B949E"
+                android:textSize="12sp"
+                android:layout_marginTop="16dp" />
 
-                <TextView
-                    android:layout_width="80dp"
-                    android:layout_height="wrap_content"
-                    android:text="发现端口"
-                    android:textColor="#78909C"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/tv_discovery_port"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#E0E0E0"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+            <EditText
+                android:id="@+id/et_discovery_port"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_glass_input"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="0dp"
+                android:textColor="#E6EDF3"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:inputType="number"
+                android:singleLine="true"
+                android:layout_marginTop="6dp" />
 
         </LinearLayout>
 
+        <!-- 使用说明 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_glass_card">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="使用说明"
+                android:textColor="#E6EDF3"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1. 打开手机热点，车机连接热点\n2. 点击下方「开始投屏」按钮\n3. 选择「整个屏幕」并授权\n4. 车机端输入上方 IP 和端口连接"
+                android:textColor="#8B949E"
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.4"
+                android:layout_marginTop="12dp" />
+
+        </LinearLayout>
+
+        <!-- 按钮 -->
         <Button
             android:id="@+id/btn_toggle"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="32dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="40dp"
             android:text="开始投屏"
-            android:textColor="#003544"
-            android:textSize="18sp"
+            android:textColor="#0D1117"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:background="#00E5FF" />
+            android:background="@drawable/bg_button_primary" />
 
     </LinearLayout>
 </ScrollView>
