@@ -10,9 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /opt/android-sdk
-      ANDROID_SDK_ROOT: /opt/android-sdk
     steps:
     - uses: actions/checkout@v4
 
@@ -23,16 +20,9 @@ jobs:
         distribution: 'temurin'
 
     - name: Setup Android SDK
-      run: |
-        mkdir -p $ANDROID_HOME
-        cd $ANDROID_HOME
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip
-        rm cmdline-tools.zip
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/
-        yes | cmdline-tools/latest/bin/sdkmanager --licenses
-        cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+      uses: android-actions/setup-android@v3
+      with:
+        packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
