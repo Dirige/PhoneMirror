@@ -32,23 +32,35 @@ jobs:
 
     - name: Build Server APK
       run: |
-        ./gradlew :server:assembleDebug --no-daemon --stacktrace 2>&1 | tee server-build.log
-        exit ${PIPESTATUS[0]}
+        set +e
+        ./gradlew :server:assembleDebug --no-daemon --stacktrace > server-build.log 2>&1
+        SERVER_EXIT=$?
+        echo "=== Server build output ==="
+        cat server-build.log
+        echo "=== End server build output ==="
+        if [ $SERVER_EXIT -ne 0 ]; then
+          echo "## Server Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat server-build.log | tail -100 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $SERVER_EXIT
+        fi
 
     - name: Build Client APK
       run: |
-        ./gradlew :client:assembleDebug --no-daemon --stacktrace 2>&1 | tee client-build.log
-        exit ${PIPESTATUS[0]}
-
-    - name: Upload build logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: |
-          *.log
-          **/build/reports/
-          **/build/outputs/logs/
+        set +e
+        ./gradlew :client:assembleDebug --no-daemon --stacktrace > client-build.log 2>&1
+        CLIENT_EXIT=$?
+        echo "=== Client build output ==="
+        cat client-build.log
+        echo "=== End client build output ==="
+        if [ $CLIENT_EXIT -ne 0 ]; then
+          echo "## Client Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat client-build.log | tail -100 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $CLIENT_EXIT
+        fi
 
     - name: Upload Server APK
       uses: actions/upload-artifact@v4
