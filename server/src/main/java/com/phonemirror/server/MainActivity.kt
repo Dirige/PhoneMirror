@@ -30,7 +30,8 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             val intent = Intent(this, ScreenCaptureService::class.java).apply {
                 putExtra("resultCode", result.resultCode)
-                putExtra("data", result.data)
+                // 将 Intent 转换为 Parcelable 传递
+                putExtra("data", result.data as android.os.Parcelable)
                 putExtra("port", Protocol.DEFAULT_STREAM_PORT)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
