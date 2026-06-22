@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
     steps:
     - uses: actions/checkout@v4
 
@@ -31,36 +34,36 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Server APK
+      id: build-server
       run: |
         set +e
         ./gradlew :server:assembleDebug --no-daemon --stacktrace > server-build.log 2>&1
         SERVER_EXIT=$?
-        echo "=== Server build output ==="
-        cat server-build.log
-        echo "=== End server build output ==="
+        echo "exitcode=$SERVER_EXIT" >> $GITHUB_OUTPUT
         if [ $SERVER_EXIT -ne 0 ]; then
-          echo "## Server Build Failed" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat server-build.log | tail -100 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          exit $SERVER_EXIT
+          echo "SERVER_LOG<<EOF" >> $GITHUB_ENV
+          cat server-build.log >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          exit 1
         fi
 
+    - name: Create issue on server build failure
+      if: failure() && steps.build-server.outcome == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const log = process.env.SERVER_LOG || 'No log available';
+          const logTail = log.split('\n').slice(-50).join('\n');
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `Build failed: ${context.sha.substring(0, 7)}`,
+            body: `## Server Build Failure\n\nCommit: ${context.sha}\nRun: ${context.runId}\n\n### Last 50 lines of build log:\n\`\`\`\n${logTail}\n\`\`\`\n`,
+            labels: ['build-failure']
+          });
+
     - name: Build Client APK
-      run: |
-        set +e
-        ./gradlew :client:assembleDebug --no-daemon --stacktrace > client-build.log 2>&1
-        CLIENT_EXIT=$?
-        echo "=== Client build output ==="
-        cat client-build.log
-        echo "=== End client build output ==="
-        if [ $CLIENT_EXIT -ne 0 ]; then
-          echo "## Client Build Failed" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat client-build.log | tail -100 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          exit $CLIENT_EXIT
-        fi
+      run: ./gradlew :client:assembleDebug --no-daemon --stacktrace
 
     - name: Upload Server APK
       uses: actions/upload-artifact@v4
