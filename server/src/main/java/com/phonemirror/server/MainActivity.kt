@@ -56,10 +56,21 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             startService(intent)
                         }
-                        serverRunning = true
-                        updateUI()
-                        Toast.makeText(this, "投屏服务已启动", Toast.LENGTH_SHORT).show()
-                        Log.d("MainActivity", "投屏服务已启动")
+                        
+                        // 延迟检查服务是否真正启动
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            if (!isServiceRunning(ScreenCaptureService::class.java)) {
+                                serverRunning = false
+                                updateUI()
+                                Toast.makeText(this, "投屏服务启动失败，请检查权限", Toast.LENGTH_LONG).show()
+                                Log.e("MainActivity", "服务未运行")
+                            } else {
+                                serverRunning = true
+                                updateUI()
+                                Toast.makeText(this, "投屏服务已启动", Toast.LENGTH_SHORT).show()
+                                Log.d("MainActivity", "投屏服务已启动")
+                            }
+                        }, 1000)
                     } catch (e: Exception) {
                         Log.e("MainActivity", "启动服务失败", e)
                         Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
@@ -213,5 +224,18 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             "未知"
         }
+    }
+
+    /**
+     * 检查服务是否正在运行
+     */
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
     }
 }
