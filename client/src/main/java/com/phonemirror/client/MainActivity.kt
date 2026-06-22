@@ -71,6 +71,10 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "请输入手机IP地址", Toast.LENGTH_SHORT).show()
             return
         }
+        if (port <= 0 || port > 65535) {
+            Toast.makeText(this, "端口无效，请输入 1-65535 之间的数字", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         if (!Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "需要开启悬浮窗权限才能投屏", Toast.LENGTH_LONG).show()

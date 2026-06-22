@@ -89,7 +89,7 @@
                 android:layout_marginTop="16dp"
                 android:text="扫描局域网设备"
                 android:textColor="#00E5FF"
-                android:background="#0D2137"
+                android:backgroundTint="#0D2137"
                 android:textSize="15sp" />
 
         </LinearLayout>
@@ -112,7 +112,7 @@
             android:textColor="#003544"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:background="#00E5FF" />
+            android:backgroundTint="#00E5FF" />
 
     </LinearLayout>
 </ScrollView>

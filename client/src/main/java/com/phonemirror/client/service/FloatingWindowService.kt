@@ -59,6 +59,11 @@ class FloatingWindowService : Service() {
                 return START_NOT_STICKY
             }
             val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
+            if (port <= 0 || port > 65535) {
+                Log.e(TAG, "Invalid port: $port")
+                stopSelf()
+                return START_NOT_STICKY
+            }
 
             startForegroundNotification()
             createFloatingWindow()
