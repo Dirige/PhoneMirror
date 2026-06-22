@@ -3,6 +3,7 @@ package com.phonemirror.server.encoder
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
+import android.util.Log
 import android.view.Surface
 import com.phonemirror.common.VideoCodecInfo
 import java.nio.ByteBuffer
@@ -10,7 +11,12 @@ import java.nio.ByteBuffer
 class VideoEncoder(private val codecInfo: VideoCodecInfo) {
     private var encoder: MediaCodec? = null
     var onFrameEncoded: ((ByteBuffer, MediaCodec.BufferInfo) -> Unit)? = null
-    private var isRunning = false
+    @Volatile private var isRunning = false
+    private var drainThread: Thread? = null
+
+    companion object {
+        private const val TAG = "VideoEncoder"
+    }
 
     fun start(): Surface {
         val format = MediaFormat.createVideoFormat(
@@ -28,7 +34,7 @@ class VideoEncoder(private val codecInfo: VideoCodecInfo) {
         val inputSurface = encoder!!.createInputSurface()
         encoder!!.start()
         isRunning = true
-        Thread({ drainLoop() }, "Encoder-Drain").start()
+        drainThread = Thread({ drainLoop() }, "Encoder-Drain").also { it.start() }
         return inputSurface
     }
 
@@ -36,23 +42,35 @@ class VideoEncoder(private val codecInfo: VideoCodecInfo) {
         val bufferInfo = MediaCodec.BufferInfo()
         val enc = encoder ?: return
         while (isRunning) {
-            val idx = enc.dequeueOutputBuffer(bufferInfo, 10000)
-            if (idx >= 0) {
-                val buf = enc.getOutputBuffer(idx)
-                if (buf != null && bufferInfo.size > 0 &&
-                    bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                    buf.position(bufferInfo.offset)
-                    buf.limit(bufferInfo.offset + bufferInfo.size)
-                    onFrameEncoded?.invoke(buf, bufferInfo)
+            try {
+                val idx = enc.dequeueOutputBuffer(bufferInfo, 10000)
+                if (idx >= 0) {
+                    val buf = enc.getOutputBuffer(idx)
+                    if (buf != null && bufferInfo.size > 0 &&
+                        bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                        buf.position(bufferInfo.offset)
+                        buf.limit(bufferInfo.offset + bufferInfo.size)
+                        onFrameEncoded?.invoke(buf, bufferInfo)
+                    }
+                    enc.releaseOutputBuffer(idx, false)
                 }
-                enc.releaseOutputBuffer(idx, false)
+            } catch (e: IllegalStateException) {
+                // 编码器被停止时 dequeueOutputBuffer 会抛此异常
+                Log.d(TAG, "drainLoop interrupted: ${e.message}")
+                break
+            } catch (e: Exception) {
+                Log.e(TAG, "drainLoop error", e)
+                break
             }
         }
     }
 
     fun stop() {
         isRunning = false
+        // 先等待 drain 线程退出，再停止编码器
+        try { drainThread?.join(500) } catch (_: InterruptedException) {}
         try { encoder?.stop(); encoder?.release() } catch (_: Exception) {}
         encoder = null
+        drainThread = null
     }
 }
