@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
+    android:padding="2dp">
+
+    <SurfaceView
+        android:id="@+id/surface_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 关闭按钮 - 左上角 -->
+    <ImageView
+        android:id="@+id/btn_close"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:src="@drawable/ic_close"
+        android:background="#88000000"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:contentDescription="关闭" />
+
+    <!-- 缩放按钮 - 右下角 -->
+    <ImageView
+        android:id="@+id/btn_resize"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="6dp"
+        android:src="@drawable/ic_resize"
+        android:background="#88000000"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:contentDescription="缩放" />
+
+</FrameLayout>

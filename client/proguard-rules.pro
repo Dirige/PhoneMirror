@@ -1,0 +1,3 @@
+-keepattributes *Annotation*
+-keep class com.phonemirror.common.** { *; }
+-dontwarn kotlinx.coroutines.**

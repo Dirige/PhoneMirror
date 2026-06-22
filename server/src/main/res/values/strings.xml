@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">手机镜像-发射端</string>
+    <string name="accessibility_desc">手机镜像需要此权限来接收车机端的触控操作，实现远程控制手机。</string>
+</resources>
