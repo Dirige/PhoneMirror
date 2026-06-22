@@ -31,10 +31,10 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Server APK
-      run: ./gradlew :server:assembleDebug --no-daemon
+      run: ./gradlew :server:assembleDebug --no-daemon --stacktrace
 
     - name: Build Client APK
-      run: ./gradlew :client:assembleDebug --no-daemon
+      run: ./gradlew :client:assembleDebug --no-daemon --stacktrace
 
     - name: Upload Server APK
       uses: actions/upload-artifact@v4

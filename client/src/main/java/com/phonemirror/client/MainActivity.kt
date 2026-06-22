@@ -105,8 +105,7 @@ class MainActivity : AppCompatActivity() {
                 if (devices.isEmpty()) {
                     tvDevices.text = "未发现设备，请确认手机端已开启投屏"
                 } else {
-                    tvDevices.text = devices.joinToString("
-") { "  " + it.name + " (" + it.ip + ")" }
+                    tvDevices.text = devices.joinToString("\n") { "  " + it.name + " (" + it.ip + ")" }
                     if (devices.isNotEmpty()) {
                         etHost.setText(devices[0].ip)
                         etPort.setText(devices[0].port.toString())
