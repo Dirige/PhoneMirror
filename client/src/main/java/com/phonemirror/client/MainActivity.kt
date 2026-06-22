@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "请输入手机IP地址", Toast.LENGTH_SHORT).show()
             return
         }
-        if (port <= 0 || port > 65535) {
+        if (port < 1 || port > 65535) {
             Toast.makeText(this, "端口无效，请输入 1-65535 之间的数字", Toast.LENGTH_SHORT).show()
             return
         }
@@ -91,10 +91,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun startFloatingService(host: String, port: Int) {
         try {
-            val intent = Intent(this, FloatingWindowService::class.java).apply {
-                putExtra("host", host)
-                putExtra("port", port)
-            }
+            // 先保存到静态变量，防止服务重启时 Intent extra 丢失
+            FloatingWindowService.savedHost = host
+            FloatingWindowService.savedPort = port
+            
+            val intent = Intent(this, FloatingWindowService::class.java)
+            intent.putExtra("host", host)
+            intent.putExtra("port", port)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
             } else {

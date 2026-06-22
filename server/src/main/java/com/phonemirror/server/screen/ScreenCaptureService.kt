@@ -40,26 +40,29 @@ class ScreenCaptureService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             val port = intent?.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT) ?: Protocol.DEFAULT_STREAM_PORT
+            Log.i(TAG, "onStartCommand: port=$port, resultCode=$projectionResultCode, hasData=${projectionData != null}")
             val resultCode = projectionResultCode
             val data = projectionData
 
             if (data == null) {
-                Log.e(TAG, "Projection data is null")
+                Log.e(TAG, "Projection data is null - service will stop")
                 stopSelf()
                 return START_NOT_STICKY
             }
 
             // Android 14 要求：必须先 startForeground，再 getMediaProjection，且必须在 3 秒内完成
+            Log.d(TAG, "Starting foreground notification...")
             startForegroundNotification()
 
             val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             mediaProjection = pm.getMediaProjection(resultCode, data)
 
             if (mediaProjection == null) {
-                Log.e(TAG, "Failed to get MediaProjection")
+                Log.e(TAG, "Failed to get MediaProjection - service will stop")
                 stopSelf()
                 return START_NOT_STICKY
             }
+            Log.d(TAG, "MediaProjection obtained successfully")
 
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val metrics = DisplayMetrics()
@@ -85,15 +88,16 @@ class ScreenCaptureService : Service() {
                 surface, null, null
             )
 
+            Log.d(TAG, "Starting ConnectionServer on port $port...")
             connectionServer = ConnectionServer(port, codecInfo).apply { start() }
             udpDiscovery = UdpDiscovery(port).apply { start() }
 
             // 清理静态变量
             projectionData = null
 
-            Log.i(TAG, "Screen capture started successfully")
+            Log.i(TAG, "Screen capture started successfully on port $port")
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting screen capture", e)
+            Log.e(TAG, "Error starting screen capture - service will stop", e)
             stopSelf()
         }
 

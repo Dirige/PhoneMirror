@@ -24,6 +24,9 @@ class FloatingWindowService : Service() {
 
     companion object {
         private const val TAG = "FloatingWindowService"
+        // 静态变量保存连接参数，防止服务重启时 Intent extra 丢失
+        var savedHost: String? = null
+        var savedPort: Int = Protocol.DEFAULT_STREAM_PORT
     }
 
     private var windowManager: WindowManager? = null
@@ -46,28 +49,34 @@ class FloatingWindowService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            if (intent == null) {
-                Log.e(TAG, "Intent is null")
-                stopSelf()
-                return START_NOT_STICKY
-            }
-
-            val host = intent.getStringExtra("host")
+            // 优先从 Intent 获取，否则使用静态变量（防止服务重启时 Intent extra 丢失）
+            val host = intent?.getStringExtra("host") ?: savedHost
             if (host.isNullOrEmpty()) {
                 Log.e(TAG, "Host is null or empty")
                 stopSelf()
                 return START_NOT_STICKY
             }
-            val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
-            if (port <= 0 || port > 65535) {
-                Log.e(TAG, "Invalid port: $port")
-                stopSelf()
-                return START_NOT_STICKY
+            
+            // 检查 Intent 是否包含 port 字段，如果没有则使用静态变量
+            val port = if (intent?.hasExtra("port") == true) {
+                intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
+            } else {
+                savedPort
             }
+            
+            Log.d(TAG, "Connecting to $host:$port (intent has port: ${intent?.hasExtra("port")})")
+
+            if (port <= 0 || port > 65535) {
+                Log.e(TAG, "Invalid port: $port, using default")
+            }
+
+            // 更新静态变量
+            savedHost = host
+            savedPort = port
 
             startForegroundNotification()
             createFloatingWindow()
-            connectToPhone(host, port)
+            connectToPhone(host, port.coerceIn(1, 65535))
         } catch (e: Exception) {
             Log.e(TAG, "Error in onStartCommand", e)
             stopSelf()
