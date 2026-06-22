@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         updateUI()
     }
 
+    @Suppress("DEPRECATION")
     private fun getLocalIp(): String {
         return try {
             val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
