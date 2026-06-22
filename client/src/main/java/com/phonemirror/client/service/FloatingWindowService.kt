@@ -74,9 +74,16 @@ class FloatingWindowService : Service() {
             savedHost = host
             savedPort = port
 
+            Log.d(TAG, "Starting foreground notification...")
             startForegroundNotification()
+            
+            Log.d(TAG, "Creating floating window...")
             createFloatingWindow()
+            
+            Log.d(TAG, "Connecting to phone...")
             connectToPhone(host, port.coerceIn(1, 65535))
+            
+            Log.i(TAG, "Service started successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error in onStartCommand", e)
             stopSelf()
@@ -86,12 +93,14 @@ class FloatingWindowService : Service() {
 
     private fun createFloatingWindow() {
         try {
+            Log.d(TAG, "Getting WindowManager...")
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val dm = DisplayMetrics()
             @Suppress("DEPRECATION")
             windowManager!!.defaultDisplay.getMetrics(dm)
             screenWidth = dm.widthPixels
             screenHeight = dm.heightPixels
+            Log.d(TAG, "Screen size: ${screenWidth}x${screenHeight}")
 
             val inflater = LayoutInflater.from(this)
             floatView = inflater.inflate(R.layout.floating_window, null)
@@ -99,6 +108,7 @@ class FloatingWindowService : Service() {
             tvStatus = floatView!!.findViewById(R.id.tv_status)
             btnClose = floatView!!.findViewById(R.id.btn_close)
             btnResize = floatView!!.findViewById(R.id.btn_resize)
+            Log.d(TAG, "Views inflated successfully")
 
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -118,12 +128,16 @@ class FloatingWindowService : Service() {
                 y = (screenHeight * 0.1f).toInt()
             }
 
+            Log.d(TAG, "Adding view to WindowManager...")
             windowManager!!.addView(floatView, params)
+            Log.d(TAG, "Floating window added successfully")
+            
             setupTouchHandling()
             setupButtons()
+            Log.d(TAG, "Touch handling and buttons setup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Error creating floating window", e)
-            stopSelf()
+            throw e  // 重新抛出，让调用方知道失败了
         }
     }
 

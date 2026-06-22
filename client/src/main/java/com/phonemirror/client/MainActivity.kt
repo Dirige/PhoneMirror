@@ -103,12 +103,39 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(intent)
             }
-            tvStatus.text = "已连接"
-            tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_light))
-            Toast.makeText(this, "正在连接 $host:$port", Toast.LENGTH_SHORT).show()
+            
+            // 延迟检测服务是否真正启动
+            tvStatus.text = "正在启动..."
+            tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_light))
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (isServiceRunning(FloatingWindowService::class.java)) {
+                    tvStatus.text = "已连接"
+                    tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_light))
+                    Toast.makeText(this, "正在连接 $host:$port", Toast.LENGTH_SHORT).show()
+                } else {
+                    tvStatus.text = "启动失败"
+                    tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_light))
+                    Toast.makeText(this, "悬浮窗服务启动失败，请检查悬浮窗权限", Toast.LENGTH_LONG).show()
+                }
+            }, 1500)
         } catch (e: Exception) {
+            tvStatus.text = "启动失败"
+            tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_light))
             Toast.makeText(this, "启动失败: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    /**
+     * 检查服务是否正在运行
+     */
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun scanDevices() {
