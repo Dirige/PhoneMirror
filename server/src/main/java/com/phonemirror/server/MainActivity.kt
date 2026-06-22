@@ -96,19 +96,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun startScreenCapture() {
         try {
+            Log.d("MainActivity", "开始启动屏幕录制...")
+            
             val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
             if (projectionManager == null) {
+                Log.e("MainActivity", "无法获取 MediaProjectionManager")
                 Toast.makeText(this, "无法获取屏幕录制服务", Toast.LENGTH_LONG).show()
                 return
             }
             
+            Log.d("MainActivity", "成功获取 MediaProjectionManager")
+            
             val intent = projectionManager.createScreenCaptureIntent()
             if (intent == null) {
+                Log.e("MainActivity", "createScreenCaptureIntent() 返回 null")
                 Toast.makeText(this, "无法创建屏幕录制请求", Toast.LENGTH_LONG).show()
                 return
             }
             
+            Log.d("MainActivity", "成功创建屏幕录制 Intent，准备启动授权界面...")
+            
             projectionLauncher.launch(intent)
+            
+            Log.d("MainActivity", "已启动授权 Activity")
         } catch (e: Exception) {
             Log.e("MainActivity", "启动屏幕录制失败", e)
             Toast.makeText(this, "启动失败: ${e.message}", Toast.LENGTH_LONG).show()
