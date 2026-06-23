@@ -29,6 +29,8 @@ class VideoDecoder(private val surfaceView: SurfaceView) {
         })
     }
 
+    private var codecConfig: ByteArray? = null
+
     fun configure(width: Int, height: Int) {
         videoWidth = width
         videoHeight = height
@@ -41,12 +43,22 @@ class VideoDecoder(private val surfaceView: SurfaceView) {
         }
     }
 
+    // FIX: Store SPS/PPS from codec config frame
+    fun setCodecConfig(data: ByteArray) {
+        codecConfig = data.copyOf()
+        Log.i("VideoDecoder", "Got codec config: ${data.size} bytes")
+    }
+
     private fun configureInternal(width: Int, height: Int) {
         release()
         try {
             val format = MediaFormat.createVideoFormat(
                 MediaFormat.MIMETYPE_VIDEO_AVC, width, height
             )
+            // FIX: Set codec config (SPS/PPS) if available
+            codecConfig?.let { config ->
+                format.setByteBuffer("csd-0", java.nio.ByteBuffer.wrap(config))
+            }
             decoder = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC).apply {
                 configure(format, surfaceView.holder.surface, null, 0)
                 start()
