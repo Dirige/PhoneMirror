@@ -1,8 +1,10 @@
 package com.phonemirror.server
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -15,6 +17,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.phonemirror.common.Protocol
 import com.phonemirror.server.screen.ScreenCaptureService
 import java.net.Inet6Address
@@ -28,6 +32,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etIp: EditText
     private lateinit var etPort: EditText
     private lateinit var etDiscoveryPort: EditText
+
+    companion object {
+        private const val PERMISSION_REQUEST_CODE = 1001
+    }
 
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -101,6 +109,9 @@ class MainActivity : AppCompatActivity() {
         etPort = findViewById(R.id.et_port)
         etDiscoveryPort = findViewById(R.id.et_discovery_port)
 
+        // 请求必要的 权限
+        requestPermissions()
+
         // 自动填充 IP 和端口
         etIp.setText(getLocalIp())
         etPort.setText(Protocol.DEFAULT_STREAM_PORT.toString())
@@ -111,6 +122,53 @@ class MainActivity : AppCompatActivity() {
                 startScreenCapture()
             } else {
                 stopScreenCapture()
+            }
+        }
+    }
+
+    private fun requestPermissions() {
+        val permissions = mutableListOf<String>()
+
+        // Android 13+ 需要通知 权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // 检查其他必要 权限
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_NETWORK_STATE)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_NETWORK_STATE)
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_WIFI_STATE)
+        }
+
+        if (permissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            val deniedPermissions = permissions.zip(grantResults.toList())
+                .filter { it.second != PackageManager.PERMISSION_GRANTED }
+                .map { it.first }
+
+            if (deniedPermissions.isNotEmpty()) {
+                Toast.makeText(this, "部分 权限被拒绝，可能影响投屏功能", Toast.LENGTH_LONG).show()
+                Log.w("MainActivity", "Denied permissions: $deniedPermissions")
+            } else {
+                Log.d("MainActivity", "所有 权限已授予")
             }
         }
     }
