@@ -39,10 +39,10 @@ class VideoEncoder(private val codecInfo: VideoCodecInfo) {
             val idx = enc.dequeueOutputBuffer(bufferInfo, 10000)
             if (idx >= 0) {
                 val buf = enc.getOutputBuffer(idx)
-                if (buf != null && bufferInfo.size > 0 &&
-                    bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                if (buf != null && bufferInfo.size > 0) {
                     buf.position(bufferInfo.offset)
                     buf.limit(bufferInfo.offset + bufferInfo.size)
+                    // FIX: Send ALL frames including codec config (SPS/PPS)
                     onFrameEncoded?.invoke(buf, bufferInfo)
                 }
                 enc.releaseOutputBuffer(idx, false)
