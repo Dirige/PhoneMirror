@@ -28,6 +28,8 @@ class ScreenCaptureService : Service() {
         // 静态变量传递 projection 数据，避免 Intent 序列化问题
         var projectionResultCode: Int = Activity.RESULT_CANCELED
         var projectionData: Intent? = null
+        // 服务运行状态标记
+        var isRunning: Boolean = false
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -95,9 +97,17 @@ class ScreenCaptureService : Service() {
             // 清理静态变量
             projectionData = null
 
+            // 标记服务已启动
+            isRunning = true
+
             Log.i(TAG, "Screen capture started successfully on port $port")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException: ${e.message}", e)
+            isRunning = false
+            stopSelf()
         } catch (e: Exception) {
             Log.e(TAG, "Error starting screen capture - service will stop", e)
+            isRunning = false
             stopSelf()
         }
 
@@ -123,6 +133,8 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "Service onDestroy called")
+        isRunning = false
         udpDiscovery?.stop()
         connectionServer?.stop()
         videoEncoder?.stop()

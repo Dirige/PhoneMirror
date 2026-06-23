@@ -67,18 +67,19 @@ class MainActivity : AppCompatActivity() {
                         
                         // 延迟检查服务是否真正启动
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            if (!isServiceRunning(ScreenCaptureService::class.java)) {
+                            // 使用静态变量检测服务状态，比 getRunningServices 更可靠
+                            if (!ScreenCaptureService.isRunning) {
                                 serverRunning = false
                                 updateUI()
-                                Toast.makeText(this, "投屏服务启动失败，请检查权限", Toast.LENGTH_LONG).show()
-                                Log.e("MainActivity", "服务未运行")
+                                Toast.makeText(this, "投屏服务启动失败，请检查日志", Toast.LENGTH_LONG).show()
+                                Log.e("MainActivity", "服务未运行，isRunning=${ScreenCaptureService.isRunning}")
                             } else {
                                 serverRunning = true
                                 updateUI()
                                 Toast.makeText(this, "投屏服务已启动", Toast.LENGTH_SHORT).show()
                                 Log.d("MainActivity", "投屏服务已启动")
                             }
-                        }, 1000)
+                        }, 1500)
                     } catch (e: Exception) {
                         Log.e("MainActivity", "启动服务失败", e)
                         Toast.makeText(this, "启动投屏服务失败: ${e.message}", Toast.LENGTH_LONG).show()
