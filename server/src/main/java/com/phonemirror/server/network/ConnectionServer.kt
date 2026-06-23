@@ -39,8 +39,11 @@ class ConnectionServer(
     }
 
     fun broadcastVideoFrame(buffer: ByteBuffer, info: android.media.MediaCodec.BufferInfo) {
+        // FIX: Save and restore buffer position to avoid issues with multiple clients
+        val savedPos = buffer.position()
         val data = ByteArray(info.size)
         buffer.get(data)
+        buffer.position(savedPos)
         val iter = clients.iterator()
         while (iter.hasNext()) {
             val client = iter.next()
