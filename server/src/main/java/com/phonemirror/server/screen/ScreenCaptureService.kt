@@ -3,6 +3,7 @@ package com.phonemirror.server.screen
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -126,7 +127,13 @@ class ScreenCaptureService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pi)
             .build()
-        startForeground(1, n)
+
+        // Android 14+ 要求明确指定前台服务类型
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else {
+            startForeground(1, n)
+        }
     }
 
     override fun onDestroy() {
