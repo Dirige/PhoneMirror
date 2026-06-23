@@ -15,6 +15,7 @@ class ConnectionClient(private val host: String, private val port: Int) {
         private set
 
     var onVideoCodecReceived: ((VideoCodecInfo) -> Unit)? = null
+    var onVideoCodecConfigReceived: ((ByteArray) -> Unit)? = null
     var onVideoFrameReceived: ((ByteArray) -> Unit)? = null
     var onDeviceInfoReceived: ((DeviceInfo) -> Unit)? = null
 
@@ -24,6 +25,7 @@ class ConnectionClient(private val host: String, private val port: Int) {
                 connect(InetSocketAddress(host, port), 5000)
                 tcpNoDelay = true
                 sendBufferSize = 256 * 1024
+                soTimeout = 60000 // 60s read timeout to detect dead connections
             }
             input = DataInputStream(socket!!.getInputStream())
             output = DataOutputStream(socket!!.getOutputStream())
@@ -38,7 +40,19 @@ class ConnectionClient(private val host: String, private val port: Int) {
                         onVideoCodecReceived?.invoke(info)
                     }
                     Protocol.MSG_VIDEO_FRAME -> {
-                        onVideoFrameReceived?.invoke(payload)
+                        // Check if this is a codec config frame (SPS/PPS)
+                        if (payload.size > 4 && payload[0] == 0.toByte() && payload[1] == 0.toByte() 
+                            && payload[2] == 0.toByte() && payload[3] == 1.toByte()) {
+                            // Check NAL unit type - SPS is type 7, PPS is type 8
+                            val nalType = payload[4].toInt() and 0x1F
+                            if (nalType == 7 || nalType == 8) {
+                                onVideoCodecConfigReceived?.invoke(payload)
+                            } else {
+                                onVideoFrameReceived?.invoke(payload)
+                            }
+                        } else {
+                            onVideoFrameReceived?.invoke(payload)
+                        }
                     }
                     Protocol.MSG_DEVICE_INFO -> {
                         val info = DeviceInfo.deserialize(payload)
