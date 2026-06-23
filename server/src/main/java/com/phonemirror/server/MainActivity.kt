@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Android 13+ 需要通知 权限
+        // Android 13+ 需要通知权限（前台服务必需）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -137,19 +137,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 检查其他必要 权限
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_NETWORK_STATE)
-            != PackageManager.PERMISSION_GRANTED) {
-            permissions.add(Manifest.permission.ACCESS_NETWORK_STATE)
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE)
-            != PackageManager.PERMISSION_GRANTED) {
-            permissions.add(Manifest.permission.ACCESS_WIFI_STATE)
-        }
-
         if (permissions.isNotEmpty()) {
+            Log.d("MainActivity", "请求运行时权限: $permissions")
             ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        } else {
+            Log.d("MainActivity", "所有运行时权限已授予")
         }
     }
 
@@ -165,10 +157,27 @@ class MainActivity : AppCompatActivity() {
                 .map { it.first }
 
             if (deniedPermissions.isNotEmpty()) {
-                Toast.makeText(this, "部分 权限被拒绝，可能影响投屏功能", Toast.LENGTH_LONG).show()
+                val message = if (deniedPermissions.contains(Manifest.permission.POST_NOTIFICATIONS)) {
+                    "通知权限被拒绝，请在系统设置中开启应用通知权限，否则无法启动投屏服务"
+                } else {
+                    "部分权限被拒绝，可能影响投屏功能"
+                }
+                
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                 Log.w("MainActivity", "Denied permissions: $deniedPermissions")
+                
+                // 如果是通知权限被拒绝，引导用户到设置页面
+                if (deniedPermissions.contains(Manifest.permission.POST_NOTIFICATIONS)) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.fromParts("package", packageName, null)
+                        }
+                        startActivity(intent)
+                    }, 2000)
+                }
             } else {
-                Log.d("MainActivity", "所有 权限已授予")
+                Log.d("MainActivity", "所有权限已授予")
+                Toast.makeText(this, "权限已授予", Toast.LENGTH_SHORT).show()
             }
         }
     }
