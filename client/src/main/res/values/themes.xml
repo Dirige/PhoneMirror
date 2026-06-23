@@ -2,10 +2,18 @@
 <resources>
     <style name="Theme.PhoneMirror" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#00E5FF</item>
-        <item name="colorPrimaryDark">#0A1929</item>
-        <item name="colorAccent">#00E5FF</item>
+        <item name="colorPrimaryVariant">#00B8D4</item>
+        <item name="colorOnPrimary">#0A1929</item>
+        <item name="colorSecondary">#00E676</item>
+        <item name="colorSecondaryVariant">#00C853</item>
+        <item name="colorOnSecondary">#0A1929</item>
         <item name="android:statusBarColor">#0A1929</item>
         <item name="android:navigationBarColor">#0A1929</item>
         <item name="android:windowBackground">#0A1929</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorSurface">#141D33</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorError">#FF5252</item>
+        <item name="colorOnError">#FFFFFF</item>
     </style>
 </resources>
