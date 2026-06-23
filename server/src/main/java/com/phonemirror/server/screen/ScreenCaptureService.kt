@@ -20,6 +20,7 @@ import com.phonemirror.server.R
 import com.phonemirror.server.encoder.VideoEncoder
 import com.phonemirror.server.network.ConnectionServer
 import com.phonemirror.server.discovery.UdpDiscovery
+import com.phonemirror.server.util.FileLogger
 
 class ScreenCaptureService : Service() {
     private var mediaProjection: MediaProjection? = null
@@ -29,52 +30,48 @@ class ScreenCaptureService : Service() {
 
     companion object {
         private const val TAG = "ScreenCaptureService"
+        var isRunning: Boolean = false
+        var projectionResultCode: Int = Activity.RESULT_CANCELED
+        var projectionData: Intent? = null
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        FileLogger.log(TAG, "=== 服务启动 ===")
         try {
-            if (intent == null) {
-                Log.e(TAG, "Intent is null")
-                stopSelf()
-                return START_NOT_STICKY
-            }
-
-            val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
-            Log.d(TAG, "Received resultCode: $resultCode")
-
-            @Suppress("DEPRECATION")
-            val data: Intent? = if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra("data", Intent::class.java)
-            } else {
-                intent.getParcelableExtra("data")
-            }
+            val resultCode = projectionResultCode
+            val data = projectionData
+            
+            FileLogger.log(TAG, "Received resultCode: $resultCode, hasData: ${data != null}")
 
             if (data == null) {
-                Log.e(TAG, "Data intent is null")
+                FileLogger.error(TAG, "Data intent is null")
                 stopSelf()
                 return START_NOT_STICKY
             }
 
             if (resultCode != Activity.RESULT_OK) {
-                Log.e(TAG, "Result code is not OK: $resultCode")
+                FileLogger.error(TAG, "Result code is not OK: $resultCode")
                 stopSelf()
                 return START_NOT_STICKY
             }
 
-            val port = intent.getIntExtra("port", Protocol.DEFAULT_STREAM_PORT)
-
+            val port = Protocol.DEFAULT_STREAM_PORT
+            FileLogger.log(TAG, "启动前台服务通知, port=$port")
             startForegroundNotification()
+            FileLogger.log(TAG, "前台服务通知启动成功")
 
             val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            FileLogger.log(TAG, "获取 MediaProjection...")
             mediaProjection = pm.getMediaProjection(resultCode, data)
 
             if (mediaProjection == null) {
-                Log.e(TAG, "Failed to get MediaProjection")
+                FileLogger.error(TAG, "Failed to get MediaProjection!")
                 stopSelf()
                 return START_NOT_STICKY
             }
+            FileLogger.log(TAG, "MediaProjection 获取成功")
 
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val metrics = DisplayMetrics()
@@ -85,11 +82,12 @@ class ScreenCaptureService : Service() {
             val w = (metrics.widthPixels * scale).toInt() and 0xFFFE
             val h = (metrics.heightPixels * scale).toInt() and 0xFFFE
 
-            Log.d(TAG, "Starting capture: ${w}x${h} @ ${metrics.densityDpi}dpi")
+            FileLogger.log(TAG, "Starting capture: ${w}x${h} @ ${metrics.densityDpi}dpi")
 
             val codecInfo = VideoCodecInfo(w, h, 30, 4_000_000)
             videoEncoder = VideoEncoder(codecInfo)
             val surface = videoEncoder!!.start()
+            FileLogger.log(TAG, "视频编码器启动成功")
             videoEncoder!!.onFrameEncoded = { buf, info ->
                 connectionServer?.broadcastVideoFrame(buf, info)
             }
@@ -99,13 +97,20 @@ class ScreenCaptureService : Service() {
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 surface, null, null
             )
+            FileLogger.log(TAG, "VirtualDisplay 创建成功")
 
             connectionServer = ConnectionServer(port, codecInfo).apply { start() }
             udpDiscovery = UdpDiscovery(port).apply { start() }
 
-            Log.i(TAG, "Screen capture started successfully")
+            isRunning = true
+            FileLogger.log(TAG, "=== 投屏服务完全启动成功 ===")
+        } catch (e: SecurityException) {
+            FileLogger.error(TAG, "SecurityException: ${e.message}", e)
+            isRunning = false
+            stopSelf()
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting screen capture", e)
+            FileLogger.error(TAG, "Error starting screen capture: ${e.message}", e)
+            isRunning = false
             stopSelf()
         }
 
@@ -137,6 +142,8 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        FileLogger.log(TAG, "服务销毁")
+        isRunning = false
         udpDiscovery?.stop()
         connectionServer?.stop()
         videoEncoder?.stop()

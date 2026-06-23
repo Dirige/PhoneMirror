@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.phonemirror.common.Protocol
 import com.phonemirror.server.screen.ScreenCaptureService
+import com.phonemirror.server.util.FileLogger
 import java.net.InetAddress
 
 class MainActivity : AppCompatActivity() {
@@ -40,20 +41,35 @@ class MainActivity : AppCompatActivity() {
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        FileLogger.log("MainActivity", "授权回调: resultCode=${result.resultCode}, hasData=${result.data != null}")
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            val intent = Intent(this, ScreenCaptureService::class.java).apply {
-                putExtra("resultCode", result.resultCode)
-                putExtra("data", result.data as android.os.Parcelable)
-                putExtra("port", Protocol.DEFAULT_STREAM_PORT)
-            }
+            // 使用静态变量传递，避免 Intent 序列化问题
+            ScreenCaptureService.projectionResultCode = result.resultCode
+            ScreenCaptureService.projectionData = result.data
+
+            val intent = Intent(this, ScreenCaptureService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
             } else {
                 startService(intent)
             }
-            serverRunning = true
-            updateUI()
+
+            // 延迟检查服务是否真正启动
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (!ScreenCaptureService.isRunning) {
+                    serverRunning = false
+                    updateUI()
+                    Toast.makeText(this, "投屏服务启动失败，请查看日志文件", Toast.LENGTH_LONG).show()
+                    FileLogger.error("MainActivity", "服务未运行")
+                } else {
+                    serverRunning = true
+                    updateUI()
+                    Toast.makeText(this, "投屏服务已启动", Toast.LENGTH_SHORT).show()
+                    FileLogger.log("MainActivity", "投屏服务已启动")
+                }
+            }, 2000)
         } else {
+            FileLogger.error("MainActivity", "授权被拒绝或data为null")
             Toast.makeText(this, "投屏授权被拒绝", Toast.LENGTH_SHORT).show()
         }
     }
@@ -61,6 +77,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // 初始化文件日志
+        FileLogger.init(this)
+        FileLogger.log("MainActivity", "App 启动")
 
         btnToggle = findViewById(R.id.btn_toggle)
         tvStatus = findViewById(R.id.tv_status)
@@ -106,11 +126,15 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+                FileLogger.log("MainActivity", "需要请求通知权限")
             }
         }
 
         if (permissions.isNotEmpty()) {
+            FileLogger.log("MainActivity", "请求权限: ${permissions.joinToString()}")
             ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        } else {
+            FileLogger.log("MainActivity", "所有权限已授予")
         }
     }
 
@@ -126,7 +150,10 @@ class MainActivity : AppCompatActivity() {
                 .map { it.first }
 
             if (deniedPermissions.isNotEmpty()) {
+                FileLogger.error("MainActivity", "权限被拒绝: ${deniedPermissions.joinToString()}")
                 Toast.makeText(this, "部分权限被拒绝，可能影响投屏功能", Toast.LENGTH_LONG).show()
+            } else {
+                FileLogger.log("MainActivity", "所有权限已授予")
             }
         }
     }
@@ -150,6 +177,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startScreenCapture() {
+        FileLogger.log("MainActivity", "开始启动屏幕录制")
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
