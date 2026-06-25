@@ -174,7 +174,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun createDeviceView(device: com.phonemirror.client.discovery.DeviceInfo): View {
+    private fun createDeviceView(device: com.phonemirror.client.discovery.DiscoveredDevice): View {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 16, 0, 16)
